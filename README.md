@@ -18,6 +18,7 @@
 <p>
 
 ## 🔥 Latest News!
+* Sep 10, 2025: 🔥 [HuMo](https://phantom-video.github.io/HuMo/) is here! We release a human-centric video generation model that supports multimodal inputs including text, reference images, and audio. HuMo has strong text prompt following, consistent subject preservation and synchronized audio-driven motion. The model is open-sourced, feel free to use it!
 * Jun 26, 2025: 🎉 Congratulations! Phantom has been accepted by ICCV 2025!
 * Jun 24, 2025: 📊 We have published [Phantom-Data](https://phantom-video.github.io/Phantom-Data/), the first general-purpose large-scale cross-pair dataset, which introduces a core cross-pair data construction method for subject-consistent video generation tasks.
 * May 27, 2025: 🎉 We have released the Phantom-Wan-14B model, a more powerful Subject-to-Video generation model. 
