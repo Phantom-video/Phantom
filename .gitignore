@@ -29,3 +29,63 @@ Wan2.1-T2V-1.3B/
 Wan2.1-I2V-14B-480P/
 Wan2.1-I2V-14B-720P/
 Phantom-Wan-1.3B/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage/
+
+# Claude
+.claude/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+eggs/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
