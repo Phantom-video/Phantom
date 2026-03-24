@@ -297,6 +297,186 @@ class DashScopePromptExpander(PromptExpander):
                 response, ensure_ascii=False))
 
 
+class OpenAICompatPromptExpander(PromptExpander):
+    """Prompt expander using any OpenAI-compatible API (e.g. MiniMax, OpenAI).
+
+    This expander calls a cloud LLM via the OpenAI Python SDK, making it
+    compatible with any provider that exposes the ``/v1/chat/completions``
+    endpoint.  By default it points at the **MiniMax** API
+    (``https://api.minimax.io/v1``) with the ``MiniMax-M2.7`` model.
+
+    Environment variables
+    ---------------------
+    ``OPENAI_API_KEY`` / ``MINIMAX_API_KEY``
+        API key used for authentication.  ``MINIMAX_API_KEY`` is checked first.
+    ``OPENAI_BASE_URL``
+        Override the base URL when using a provider other than MiniMax.
+    """
+
+    # Default to MiniMax
+    DEFAULT_BASE_URL = "https://api.minimax.io/v1"
+    DEFAULT_MODEL = "MiniMax-M2.7"
+
+    def __init__(
+        self,
+        api_key=None,
+        model_name=None,
+        base_url=None,
+        max_image_size=512 * 512,
+        retry_times=4,
+        is_vl=False,
+        **kwargs,
+    ):
+        if model_name is None:
+            model_name = self.DEFAULT_MODEL
+        super().__init__(model_name, is_vl, **kwargs)
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ImportError(
+                "The 'openai' package is required for OpenAICompatPromptExpander. "
+                "Install it with: pip install openai"
+            )
+
+        if api_key is None:
+            api_key = os.environ.get("MINIMAX_API_KEY") or os.environ.get(
+                "OPENAI_API_KEY"
+            )
+        if not api_key:
+            raise ValueError(
+                "An API key is required. Set MINIMAX_API_KEY or OPENAI_API_KEY, "
+                "or pass api_key directly."
+            )
+
+        if base_url is None:
+            base_url = os.environ.get("OPENAI_BASE_URL", self.DEFAULT_BASE_URL)
+
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model = model_name
+        self.max_image_size = max_image_size
+        self.retry_times = retry_times
+
+    def _strip_think_tags(self, text):
+        """Remove <think>...</think> blocks that some models emit."""
+        import re
+        return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+    def extend(self, prompt, system_prompt, seed=-1, *args, **kwargs):
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+        exception = None
+        for _ in range(self.retry_times):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.7,
+                )
+                expanded = self._strip_think_tags(
+                    response.choices[0].message.content
+                )
+                return PromptOutput(
+                    status=True,
+                    prompt=expanded,
+                    seed=seed,
+                    system_prompt=system_prompt,
+                    message=json.dumps(
+                        {"model": self.model, "content": expanded},
+                        ensure_ascii=False,
+                    ),
+                )
+            except Exception as e:
+                exception = e
+        return PromptOutput(
+            status=False,
+            prompt=prompt,
+            seed=seed,
+            system_prompt=system_prompt,
+            message=str(exception),
+        )
+
+    def extend_with_img(
+        self,
+        prompt,
+        system_prompt,
+        image: Union[Image.Image, str] = None,
+        seed=-1,
+        *args,
+        **kwargs,
+    ):
+        import base64
+
+        if isinstance(image, str):
+            image = Image.open(image).convert("RGB")
+
+        # Resize to respect max_image_size
+        w, h = image.width, image.height
+        area = min(w * h, self.max_image_size)
+        aspect_ratio = h / w
+        resized_h = round(math.sqrt(area * aspect_ratio))
+        resized_w = round(math.sqrt(area / aspect_ratio))
+        image = image.resize((resized_w, resized_h))
+
+        # Encode image to base64 data URL
+        import io
+
+        buf = io.BytesIO()
+        image.save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+        image_url = f"data:image/png;base64,{b64}"
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_url},
+                    },
+                ],
+            },
+        ]
+
+        exception = None
+        status = False
+        result_prompt = prompt
+        for _ in range(self.retry_times):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.7,
+                )
+                result_prompt = self._strip_think_tags(
+                    response.choices[0].message.content
+                )
+                status = True
+                break
+            except Exception as e:
+                exception = e
+
+        result_prompt = result_prompt.replace("\n", "\\n")
+        return PromptOutput(
+            status=status,
+            prompt=result_prompt,
+            seed=seed,
+            system_prompt=system_prompt,
+            message=(
+                str(exception)
+                if not status
+                else json.dumps(
+                    {"model": self.model, "content": result_prompt},
+                    ensure_ascii=False,
+                )
+            ),
+        )
+
+
 class QwenPromptExpander(PromptExpander):
     model_dict = {
         "QwenVL2.5_3B": "Qwen/Qwen2.5-VL-3B-Instruct",
