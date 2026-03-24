@@ -27,7 +27,7 @@ from PIL import Image, ImageOps
 
 import phantom_wan
 from phantom_wan.configs import WAN_CONFIGS, SIZE_CONFIGS, MAX_AREA_CONFIGS, SUPPORTED_SIZES
-from phantom_wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
+from phantom_wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander, OpenAICompatPromptExpander
 from phantom_wan.utils.utils import cache_video, cache_image, str2bool
 
 EXAMPLE_PROMPT = {
@@ -169,8 +169,8 @@ def _parse_args():
         "--prompt_extend_method",
         type=str,
         default="local_qwen",
-        choices=["dashscope", "local_qwen"],
-        help="The prompt extend method to use.")
+        choices=["dashscope", "local_qwen", "openai_compatible"],
+        help="The prompt extend method to use. 'openai_compatible' works with any OpenAI-compatible API (e.g. MiniMax).")
     parser.add_argument(
         "--prompt_extend_model",
         type=str,
@@ -326,6 +326,10 @@ def generate(args):
                 model_name=args.prompt_extend_model,
                 is_vl="i2v" in args.task,
                 device=rank)
+        elif args.prompt_extend_method == "openai_compatible":
+            prompt_expander = OpenAICompatPromptExpander(
+                model_name=args.prompt_extend_model,
+                is_vl="i2v" in args.task)
         else:
             raise NotImplementedError(
                 f"Unsupport prompt_extend_method: {args.prompt_extend_method}")

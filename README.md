@@ -88,10 +88,39 @@ pip install "xfuser>=0.4.1"
 torchrun --nproc_per_node=8 generate.py --task s2v-1.3B --size 832*480 --ckpt_dir ./Wan2.1-T2V-1.3B --phantom_ckpt ./Phantom-Wan-Models/Phantom-Wan-1.3B.pth  --ref_image "examples/ref3.png,examples/ref4.png" --dit_fsdp --t5_fsdp --ulysses_size 4 --ring_size 2 --prompt "夕阳下，一位有着小麦色肌肤、留着乌黑长发的女人穿上有着大朵立体花朵装饰、肩袖处带有飘逸纱带的红色纱裙，漫步在金色的海滩上，海风轻拂她的长发，画面唯美动人。" --base_seed 42
 ```
 
-> 💡Note: 
+> 💡Note:
 > * Changing `--ref_image` can achieve single reference Subject-to-Video generation or multi-reference Subject-to-Video generation. The number of reference images should be within 4.
 > * To achieve the best generation results, we recommend that you describe the visual content of the reference image as accurately as possible when writing `--prompt`. For example, "examples/ref1.png" can be described as "a toy camera in yellow and red with blue buttons".
 > * When the generated video is unsatisfactory, the most straightforward solution is to try changing the `--base_seed` and modifying the description in the `--prompt`.
+
+### Prompt Extension with OpenAI-Compatible APIs (e.g. MiniMax)
+
+In addition to DashScope and local Qwen models, you can use any OpenAI-compatible LLM API for prompt extension. This is useful when you want to use cloud LLM providers like [MiniMax](https://www.minimax.io/) without the DashScope dependency.
+
+```sh
+# Install the openai package
+pip install openai
+
+# Set your API key
+export MINIMAX_API_KEY="your-api-key"
+
+# Use MiniMax (default) for prompt extension
+python generate.py --task s2v-1.3B --size 832*480 \
+    --ckpt_dir ./Wan2.1-T2V-1.3B \
+    --phantom_ckpt ./Phantom-Wan-Models/Phantom-Wan-1.3B.pth \
+    --ref_image "examples/ref1.png,examples/ref2.png" \
+    --prompt "A girl playing with a dog on a sunny meadow" \
+    --use_prompt_extend --prompt_extend_method openai_compatible
+
+# Use a different model or provider
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+export OPENAI_API_KEY="your-openai-key"
+python generate.py --task t2v-14B --size 1280*720 \
+    --ckpt_dir ./Wan2.1-T2V-14B \
+    --prompt "A cat surfing on the ocean" \
+    --use_prompt_extend --prompt_extend_method openai_compatible \
+    --prompt_extend_model gpt-4o
+```
 
 For more inference examples, please refer to "infer.sh". You will get the following generated results:
 
